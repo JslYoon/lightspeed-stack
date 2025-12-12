@@ -1081,11 +1081,11 @@ async def retrieve_response(
     ]
 
     response = await agent.create_turn(
-        messages=[UserMessage(role="user", content=query_request.query)],
+        messages=[UserMessage(role="user", content=query_request.query).model_dump()],
         session_id=session_id,
-        documents=documents,
+        # documents=documents,
         stream=True,
-        toolgroups=toolgroups,
+        # toolgroups=toolgroups,
     )
     response = cast(AsyncIterator[AgentTurnResponseStreamChunk], response)
 
