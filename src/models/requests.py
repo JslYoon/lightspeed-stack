@@ -159,6 +159,12 @@ class QueryRequest(BaseModel):
         examples=[MEDIA_TYPE_JSON, MEDIA_TYPE_TEXT],
     )
 
+    vector_store_ids: Optional[list[str]] = Field(
+        None,
+        description="The optional list of vector store IDs to query RAG tools from",
+        examples=["vector_store_1", "vector_store_2"],
+    )
+
     # provides examples for /docs endpoint
     model_config = {
         "extra": "forbid",

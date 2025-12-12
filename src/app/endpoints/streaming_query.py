@@ -1061,9 +1061,13 @@ async def retrieve_response(
             ),
         }
 
-        vector_db_ids = [
-            vector_db.identifier for vector_db in await client.vector_dbs.list()
-        ]
+        # Use vector_store_ids from request if provided, otherwise use all available vector DBs
+        if query_request.vector_store_ids:
+            vector_db_ids = query_request.vector_store_ids
+        else:
+            vector_db_ids = [
+                vector_db.identifier for vector_db in await client.vector_dbs.list()
+            ]
         toolgroups = (get_rag_toolgroups(vector_db_ids) or []) + [
             mcp_server.name for mcp_server in configuration.mcp_servers
         ]
