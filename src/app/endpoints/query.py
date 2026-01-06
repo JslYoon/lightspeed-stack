@@ -675,12 +675,19 @@ async def retrieve_response(  # pylint: disable=too-many-locals,too-many-branche
             ),
         }
 
-        vector_db_ids = [
-            vector_db.identifier for vector_db in await client.vector_dbs.list()
-        ]
+        # Use specified vector stores or fetch all available ones
+        if query_request.vector_store_ids:
+            vector_db_ids = query_request.vector_store_ids
+        else:
+            vector_db_ids = [
+                vector_store.id
+                for vector_store in (await client.vector_stores.list()).data
+            ]
+
         toolgroups = (get_rag_toolgroups(vector_db_ids) or []) + [
             mcp_server.name for mcp_server in configuration.mcp_servers
         ]
+        
         # Convert empty list to None for consistency with existing behavior
         if not toolgroups:
             toolgroups = None

@@ -1,32 +1,87 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Lightspeed Core Stack Development Guide
 
 ## Project Overview
 Lightspeed Core Stack (LCS) is an AI-powered assistant built on FastAPI that provides answers using LLM services, agents, and RAG databases. It integrates with Llama Stack for AI operations.
 
 ## Development Environment
-- **Python**: Check `pyproject.toml` for supported Python versions
-- **Package Manager**: uv (use `uv run` for all commands)
-- **Required Commands**:
-  - `uv run make format` - Format code (black + ruff)
-  - `uv run make verify` - Run all linters (black, pylint, pyright, ruff, docstyle, check-types)
+- **Python**: 3.12 or 3.13 (check `pyproject.toml` for exact requirements)
+- **Package Manager**: uv (use `uv run` prefix for all commands)
+- **Setup**: `uv sync --group dev --group llslibdev` to install all dependencies
+- **Configuration**: Default config is `lightspeed-stack.yaml` (override with `-c` flag)
+
+## Essential Commands
+
+### Running the Service
+```bash
+make run                      # Run service locally (uses lightspeed-stack.yaml)
+uv run src/lightspeed_stack.py -c <config-file>  # Run with custom config
+```
+
+### Testing
+```bash
+make test-unit                # Unit tests (60% coverage required)
+make test-integration         # Integration tests (10% coverage required)
+make test-e2e                 # End-to-end tests (behave framework)
+
+# Run specific test file or directory
+uv run python -m pytest -vv tests/unit/utils/
+uv run python -m pytest -vv tests/unit/utils/ --cov=src/utils/ --cov-report term-missing
+```
+
+### Code Quality
+```bash
+make format                   # Auto-format code (black + ruff --fix)
+make verify                   # Run all linters (black, pylint, pyright, ruff, docstyle, check-types)
+make check-types              # Type hint checks (mypy)
+make security-check           # Security scanning (bandit)
+```
+
+### Schema Generation
+```bash
+make schema                   # Generate OpenAPI schema (docs/openapi.json)
+make openapi-doc              # Generate OpenAPI markdown documentation
+```
 
 ## Code Architecture & Patterns
+
+### High-Level Architecture
+LCS is a FastAPI service that acts as a bridge between clients and Llama Stack. Key integration patterns:
+
+1. **Llama Stack Integration**: Two deployment modes
+   - **Server Mode** (`use_as_library_client: false`): Llama Stack runs as separate service, LCS connects via HTTP
+   - **Library Mode** (`use_as_library_client: true`): Llama Stack embedded in LCS process via Python client
+
+2. **Configuration System**: Pydantic models extending `ConfigurationBase` with `extra="forbid"`
+   - Service config: `lightspeed-stack.yaml` (FastAPI, auth, CORS, user data collection)
+   - Llama Stack config: `run.yaml` (providers, models, agents, safety shields)
+
+3. **Client Holder Pattern**: `AsyncLlamaStackClientHolder` singleton manages Llama Stack client lifecycle
 
 ### Project Structure
 ```
 src/
 ├── app/                    # FastAPI application
-│   ├── endpoints/         # REST API endpoints
-│   └── main.py           # Application entry point
-├── auth/                  # Authentication modules (k8s, jwk, noop)
+│   ├── endpoints/         # REST API endpoints (query, streaming_query, feedback, health, etc.)
+│   ├── main.py           # FastAPI app initialization, lifespan management
+│   └── routers.py        # Route registration
+├── authentication/        # Authentication modules (k8s, jwk, noop, noop-with-token)
 ├── authorization/         # Authorization middleware & resolvers
 ├── models/               # Pydantic models
-│   ├── config.py         # Configuration classes
-│   ├── requests.py       # Request models
-│   └── responses.py      # Response models
+│   ├── config.py         # Configuration classes hierarchy
+│   ├── requests.py       # API request models
+│   └── responses.py      # API response models
 ├── utils/                # Utility functions
-├── client.py             # Llama Stack client wrapper
-└── configuration.py      # Config management
+├── cache/                # Conversation cache implementations (memory, sqlite, postgres, noop)
+├── metrics/              # Prometheus metrics
+├── runners/              # Uvicorn server runner
+├── client.py             # AsyncLlamaStackClientHolder singleton
+├── configuration.py      # Config loading and management
+├── constants.py          # Global constants (Llama Stack version bounds, defaults)
+└── lightspeed_stack.py   # CLI entry point
 ```
 
 ### Coding Standards
@@ -142,11 +197,16 @@ tests/
 - **Common Steps**: Service status, authentication, HTTP requests
 - **Test List**: Maintained in `tests/e2e/test_list.txt`
 
-### Test Commands
+### Running Individual Tests
 ```bash
-uv run make test-unit        # Unit tests with coverage
-uv run make test-integration # Integration tests  
-uv run make test-e2e        # End-to-end tests
+# Run specific test file
+uv run python -m pytest -vv tests/unit/utils/test_common.py
+
+# Run specific test with coverage
+uv run python -m pytest -vv tests/unit/utils/ --cov=src/utils/ --cov-report term-missing
+
+# Run tests matching pattern
+uv run python -m pytest -vv -k "test_configuration"
 ```
 
 ## Quality Assurance
@@ -185,3 +245,23 @@ uv run make test-e2e        # End-to-end tests
 4. Follow existing code patterns in the module you're modifying
 5. Write unit tests covering new functionality
 6. Run format and verify before completion
+
+## Critical Integration Points
+
+### Llama Stack Version Compatibility
+- Service checks Llama Stack version on startup (defined in `src/constants.py`)
+- `MINIMAL_SUPPORTED_LLAMA_STACK_VERSION` and `MAXIMAL_SUPPORTED_LLAMA_STACK_VERSION`
+- Service will not start if Llama Stack version is outside supported range
+- When updating Llama Stack dependency in `pyproject.toml`, verify version bounds in `constants.py`
+
+### Application Startup Flow
+1. Load configuration from `lightspeed-stack.yaml` (or path from `LIGHTSPEED_STACK_CONFIG_PATH`)
+2. Initialize `AsyncLlamaStackClientHolder` with Llama Stack config
+3. Verify Llama Stack version compatibility
+4. Register MCP servers (if configured)
+5. Initialize database and create tables
+6. Start FastAPI server
+
+### Configuration Files
+- **lightspeed-stack.yaml**: Service configuration (service settings, auth, CORS, user data collection, conversation cache)
+- **run.yaml**: Llama Stack configuration (providers, models, agents, safety shields) - used in library mode or for separate Llama Stack server

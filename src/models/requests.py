@@ -89,6 +89,13 @@ class QueryRequest(BaseModel):
         ```
     """
 
+    vector_store_ids: Optional[list[str]] = Field(
+        None,
+        description="Optional list of specific vector store IDs to query for RAG. "
+        "If not provided, all available vector stores will be queried.",
+        examples=["ocp_docs", "knowledge_base", "vector_db_1"],
+    )
+
     query: str = Field(
         description="The query string",
         examples=["What is Kubernetes?"],
