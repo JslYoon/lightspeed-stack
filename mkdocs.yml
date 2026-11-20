@@ -1,0 +1,20 @@
+site_name: Lightspeed Stack
+site_description: TechDocs for the Lightspeed Stack repository
+repo_url: https://github.com/JslYoon/lightspeed-stack
+edit_uri: edit/main/
+nav:
+  - Overview: techdocs/index.md
+  - Architecture: techdocs/architecture.md
+  - Repository Layout: techdocs/repository-layout.md
+  - Build and Run: techdocs/build-and-run.md
+  - Configuration and Integrations: techdocs/configuration-and-integrations.md
+  - API Surface: techdocs/api-surface.md
+  - Testing and Operations: techdocs/testing-and-operations.md
+  - Existing Upstream Docs: techdocs/upstream-docs.md
+plugins:
+  - techdocs-core
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
